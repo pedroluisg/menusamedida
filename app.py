@@ -8,15 +8,12 @@ st.set_page_config(page_title="Asistente de Cenas Infantiles", page_icon="🍲",
 # --- CORRECCIÓN VISUAL DE LOS TEXTOS Y CAJAS ---
 st.markdown("""
     <style>
-    /* Forzar que el texto dentro de los contenedores y markdown tenga color oscuro y contraste bien */
     .stMarkdown, p, li, span {
         color: #1f2937 !important;
     }
-    /* Estilo para los títulos y subtítulos */
     h1, h2, h3 {
         color: #111827 !important;
     }
-    /* Estilo para las cajas de resultados o información */
     div.stMarkdown div {
         color: #1f2937;
     }
@@ -26,11 +23,14 @@ st.markdown("""
 st.title("🍲 Asistente de Cenas para los Peques")
 st.write("Sube los menús del comedor de ambos niños para generar propuestas de cena equilibradas, cruzando toda la información para adaptarlas a los dos al mismo tiempo.")
 
-# Campo para la API Key
-api_key = st.text_input("Introduce tu OpenAI API Key:", type="password")
+# --- CARGA AUTOMÁTICA DE LA API KEY DESDE LOS SECRETOS DE STREAMLIT ---
+try:
+    api_key = st.secrets["OPENAI_API_KEY"]
+except Exception:
+    api_key = None
 
 if not api_key:
-    st.warning("Por favor, introduce tu API Key para continuar.")
+    st.error("⚠️ No se ha encontrado la OPENAI_API_KEY en los secretos de Streamlit. Por favor, configúrala en el panel de Streamlit Cloud.")
 else:
     client = OpenAI(api_key=api_key)
 
@@ -47,7 +47,6 @@ else:
         if st.button("Generar Menú de Cenas Semanal"):
             with st.spinner("Analizando todos los menús y cruzando datos nutricionales para ambos niños..."):
                 
-                # Prompt reforzado para asegurar el uso conjunto de TODOS los menús
                 prompt = (
                     "Actúa como un nutricionista infantil experto. "
                     "Tienes la obligación estricta y absoluta de UTILIZAR TODOS LOS MENÚS ESCOLARES ADJUNTOS para analizar qué han comido al mediodía. "
@@ -56,24 +55,17 @@ else:
                     "Alterna verdura, hidratos (patata/cereal), proteína magra (pescado blanco, carne blanca o huevo) y fruta de postre según lo que haya faltado en el conjunto de los menús."
                 )
 
-                # Preparamos los contenidos para enviarlos a OpenAI (texto + archivos/imágenes)
                 messages_content = [{"type": "text", "text": prompt}]
                 
                 for uploaded_file in uploaded_files:
                     file_bytes = uploaded_file.getvalue()
                     
-                    # Si es una imagen
                     if uploaded_file.type in ["image/png", "image/jpeg", "image/jpg"]:
                         base64_image = base64.b64encode(file_bytes).decode("utf-8")
                         messages_content.append({
                             "type": "image_url",
                             "image_url": {"url": f"data:{uploaded_file.type};base64,{base64_image}"}
                         })
-                    # Si es un PDF (o archivo genérico), se adjunta como texto o se procesa adecuadamente
-                    elif uploaded_file.type == "application/pdf":
-                        # Nota: Si subes PDFs escaneados o imágenes, OpenAI los procesa mejor como imagen o texto extraído.
-                        # Aquí puedes añadir la lógica de lectura si procesas texto plano de PDFs.
-                        pass
 
                 try:
                     response = client.chat.completions.create(
