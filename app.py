@@ -71,7 +71,7 @@ with st.sidebar.form("form_feedback"):
     if enviar_feedback:
         if comentario.strip():
             # 📌 CAMBIA AQUÍ TU CORREO DE GMAIL REAL ENTRE LAS COMILLAS
-            mi_correo = "TU_CORREO_DE_GMAIL_AQUÍ@gmail.com"
+            mi_correo = "maestroalos40@gmail.com"
             
             asunto = "Feedback sobre el Asistente de Cenas Familiares"
             cuerpo = f"Comentario:\n{comentario}\n\nEnviado por: {email_usuario if email_usuario else 'Anónimo'}"
