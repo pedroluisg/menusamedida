@@ -4,7 +4,7 @@ from google.genai import types
 import datetime
 
 # Configuración de la página
-st.set_page_config(page_title="Asistente de Cenas Infantiles", page_icon="🍲", layout="centered")
+st.set_page_config(page_title="Asistente de Cenas Familiares", page_icon="🍲", layout="centered")
 
 # --- ESTILOS ADAPTATIVOS PARA MODO CLARO Y OSCURO ---
 st.markdown("""
@@ -32,9 +32,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🍲 Asistente de Cenas Familiares")
-st.write("Configura los datos de los niños y las fechas para generar un plan de cenas equilibrado y adaptado.")
+st.write("Configura los datos de los niños, las fechas y tus preferencias para generar un plan de cenas equilibrado.")
 
-# --- BARRA LATERAL DE CONFIGURACIÓN (Multi-familia) ---
+# --- BARRA LATERAL DE CONFIGURACIÓN ---
 st.sidebar.header("⚙️ Configuración Familiar")
 
 # 1. Número de menús / niños a tener en cuenta
@@ -53,6 +53,12 @@ st.sidebar.header("📅 Rango de Fechas")
 fecha_inicio = st.sidebar.date_input("Fecha de inicio:", datetime.date.today())
 fecha_fin = st.sidebar.date_input("Fecha de fin:", datetime.date.today() + datetime.timedelta(days=6))
 
+st.sidebar.markdown("---")
+
+# 4. Opción para familias con Thermomix
+st.sidebar.header("🍳 Preferencias de Cocina")
+tiene_thermomix = st.sidebar.checkbox("¿Tenemos Thermomix?", value=False, help="Marca esta opción si quieres que el asistente sugiera recetas del recetario de Cookidoo adaptadas a cada cena.")
+
 # --- CARGA AUTOMÁTICA DE LA GEMINI_API_KEY DESDE LOS SECRETOS ---
 try:
     gemini_api_key = st.secrets["GEMINI_API_KEY"]
@@ -64,7 +70,7 @@ if not gemini_api_key:
 else:
     client = genai.Client(api_key=gemini_api_key)
 
-    # 4. Subida de menús escolares adaptada al número de niños
+    # Subida de menús escolares adaptada al número de niños
     st.subheader("📂 Subida de Menús Escolares")
     uploaded_files = st.file_uploader(
         f"Sube los {num_ninos} menú(s) escolar(es) (PDFs o fotos):", 
@@ -78,7 +84,7 @@ else:
         if st.button("Generar Propuesta de Cenas"):
             with st.spinner("Gemini está cruzando los menús y planificando las cenas..."):
                 
-                # Construcción dinámica del prompt con la información personalizada
+                # Construcción dinámica del prompt base
                 edades_str = ", ".join([f"{e} años" for e in edades_ninos])
                 prompt = (
                     f"Actúa como un nutricionista infantil experto. "
@@ -88,6 +94,13 @@ else:
                     f"Cruza la información de todos los menús escolares día a día para que la cena compense y complemente exactamente lo que todos los niños han comido al mediodía de forma simultánea. "
                     f"Alterna verdura, hidratos (patata/cereal), proteína magra (pescado blanco, carne blanca o huevo) y fruta de postre según los huecos nutricionales de cada jornada."
                 )
+
+                # Si el usuario ha marcado que tiene Thermomix, añadimos la directiva adicional para Cookidoo
+                if tiene_thermomix:
+                    prompt += (
+                        " ADEMÁS, dado que la familia cuenta con Thermomix, incluye para cada cena recomendada los títulos de recetas iguales o muy similares "
+                        "que se puedan buscar y encontrar fácilmente en la plataforma oficial de recetas Cookidoo."
+                    )
 
                 contents = [prompt]
                 
@@ -110,7 +123,6 @@ else:
                         )
 
                 try:
-                    # Actualizado al modelo recomendado actual
                     response = client.models.generate_content(
                         model='gemini-3.8-flash',
                         contents=contents,
@@ -118,7 +130,8 @@ else:
                     
                     menu_resultado = response.text
                     
-                    st.subheader(f"✨ Propuesta de Cenas ({fecha_inicio} al {fecha_fin})")
+                    titulo_seccion = f"✨ Propuesta de Cenas con Thermomix ({fecha_inicio} al {fecha_fin})" if tiene_thermomix else f"✨ Propuesta de Cenas ({fecha_inicio} al {fecha_fin})"
+                    st.subheader(titulo_seccion)
                     st.markdown(menu_resultado)
 
                 except Exception as e:
