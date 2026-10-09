@@ -2,7 +2,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 import datetime
-import requests
+import urllib.parse
 
 # Configuración de la página
 st.set_page_config(page_title="Asistente de Cenas Familiares", page_icon="🍲", layout="centered")
@@ -60,20 +60,34 @@ st.sidebar.markdown("---")
 st.sidebar.header("🍳 Preferencias de Cocina")
 tiene_thermomix = st.sidebar.checkbox("¿Tenemos Thermomix?", value=False, help="Marca esta opción si quieres que el asistente sugiera recetas del recetario de Cookidoo adaptadas a cada cena.")
 
-# --- SECCIÓN DE FEEDBACK EN LA BARRA LATERAL ---
+# --- SECCIÓN DE FEEDBACK PARA ENVIAR A TU CORREO ---
 st.sidebar.markdown("---")
 st.sidebar.header("💬 ¿Qué te ha parecido?")
 with st.sidebar.form("form_feedback"):
     comentario = st.text_area("Déjanos tu opinión o sugerencia:")
     email_usuario = st.text_input("Tu email (opcional):")
-    enviar_feedback = st.form_submit_button("Enviar Opinión")
+    enviar_feedback = st.form_submit_button("Enviar Opinión por Email")
     
     if enviar_feedback:
         if comentario.strip():
-            # Usamos un servicio gratuito de envío de formularios por email (Web3Forms)
-            # Opcional: puedes cambiar "YOUR_ACCESS_KEY" por una clave gratuita de web3forms.com si quieres recibirlo directo al email.
-            # De momento, lo guardamos o simulamos el envío con éxito:
-            st.sidebar.success("¡Muchas gracias! Tu opinión nos ayuda a mejorar.")
+            # 📌 CAMBIA AQUÍ TU CORREO DE GMAIL REAL ENTRE LAS COMILLAS
+            mi_correo = "TU_CORREO_DE_GMAIL_AQUÍ@gmail.com"
+            
+            asunto = "Feedback sobre el Asistente de Cenas Familiares"
+            cuerpo = f"Comentario:\n{comentario}\n\nEnviado por: {email_usuario if email_usuario else 'Anónimo'}"
+            
+            # Codificamos el mensaje para que funcione de forma segura en un enlace web
+            mailto_url = f"mailto:{mi_correo}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
+            
+            # Mostramos un botón interactivo para que el usuario abra su correo y te lo envíe
+            st.sidebar.markdown(f"""
+                <div style="margin-top: 10px;">
+                    <a href="{mailto_url}" target="_blank" style="background-color: #ff4b4b; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-block;">
+                        ✉️ Pincha aquí para abrir tu correo y enviar
+                    </a>
+                </div>
+            """, unsafe_allow_html=True)
+            st.sidebar.success("¡Gracias! Pulsa el botón de arriba para completar el envío desde tu correo.")
         else:
             st.sidebar.warning("Por favor, escribe algún comentario antes de enviar.")
 
