@@ -5,22 +5,33 @@ from google.genai import types
 # Configuración de la página
 st.set_page_config(page_title="Asistente de Cenas Infantiles", page_icon="🍲", layout="centered")
 
-# --- CORRECCIÓN VISUAL DE LOS TEXTOS Y CAJAS ---
+# --- ESTILOS ADAPTATIVOS PARA MODO CLARO Y OSCURO ---
 st.markdown("""
     <style>
-    .stMarkdown, p, li, span {
-        color: #1f2937 !important;
+    /* Estilos automáticos según el tema del dispositivo (Claro / Oscuro) */
+    @media (prefers-color-scheme: dark) {
+        .stMarkdown, p, li, span, h1, h2, h3 {
+            color: #f3f4f6 !important; /* Texto claro muy legible sobre fondo oscuro */
+        }
+        div.stMarkdown div {
+            color: #f3f4f6;
+        }
     }
-    h1, h2, h3 {
-        color: #111827 !important;
-    }
-    div.stMarkdown div {
-        color: #1f2937;
+    @media (prefers-color-scheme: light) {
+        .stMarkdown, p, li, span {
+            color: #1f2937 !important; /* Texto oscuro sobre fondo claro */
+        }
+        h1, h2, h3 {
+            color: #111827 !important;
+        }
+        div.stMarkdown div {
+            color: #1f2937;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🍲 Asistente de Cenas para los Peques (con Gemini)")
+st.title("🍲 Asistente de Cenas para los Peques")
 st.write("Sube los menús del comedor de ambos niños para generar propuestas de cena equilibradas, cruzando toda la información con Gemini.")
 
 # --- CARGA AUTOMÁTICA DE LA GEMINI_API_KEY DESDE LOS SECRETOS ---
@@ -79,7 +90,7 @@ else:
                         )
 
                 try:
-                    # Usamos gemini-2.5-flash (rápido, económico y excelente con imágenes/PDFs)
+                    # Usamos gemini-2.5-flash para análisis rápido y preciso de imágenes/PDFs
                     response = client.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=contents,
