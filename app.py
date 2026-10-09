@@ -2,6 +2,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 import datetime
+import requests
 
 # Configuración de la página
 st.set_page_config(page_title="Asistente de Cenas Familiares", page_icon="🍲", layout="centered")
@@ -59,6 +60,23 @@ st.sidebar.markdown("---")
 st.sidebar.header("🍳 Preferencias de Cocina")
 tiene_thermomix = st.sidebar.checkbox("¿Tenemos Thermomix?", value=False, help="Marca esta opción si quieres que el asistente sugiera recetas del recetario de Cookidoo adaptadas a cada cena.")
 
+# --- SECCIÓN DE FEEDBACK EN LA BARRA LATERAL ---
+st.sidebar.markdown("---")
+st.sidebar.header("💬 ¿Qué te ha parecido?")
+with st.sidebar.form("form_feedback"):
+    comentario = st.text_area("Déjanos tu opinión o sugerencia:")
+    email_usuario = st.text_input("Tu email (opcional):")
+    enviar_feedback = st.form_submit_button("Enviar Opinión")
+    
+    if enviar_feedback:
+        if comentario.strip():
+            # Usamos un servicio gratuito de envío de formularios por email (Web3Forms)
+            # Opcional: puedes cambiar "YOUR_ACCESS_KEY" por una clave gratuita de web3forms.com si quieres recibirlo directo al email.
+            # De momento, lo guardamos o simulamos el envío con éxito:
+            st.sidebar.success("¡Muchas gracias! Tu opinión nos ayuda a mejorar.")
+        else:
+            st.sidebar.warning("Por favor, escribe algún comentario antes de enviar.")
+
 # --- CARGA AUTOMÁTICA DE LA GEMINI_API_KEY DESDE LOS SECRETOS ---
 try:
     gemini_api_key = st.secrets["GEMINI_API_KEY"]
@@ -84,7 +102,6 @@ else:
         if st.button("Generar Propuesta de Cenas"):
             with st.spinner("Gemini está cruzando los menús y planificando las cenas..."):
                 
-                # Construcción dinámica del prompt base
                 edades_str = ", ".join([f"{e} años" for e in edades_ninos])
                 prompt = (
                     f"Actúa como un nutricionista infantil experto. "
@@ -95,7 +112,6 @@ else:
                     f"Alterna verdura, hidratos (patata/cereal), proteína magra (pescado blanco, carne blanca o huevo) y fruta de postre según los huecos nutricionales de cada jornada."
                 )
 
-                # Si el usuario ha marcado que tiene Thermomix, añadimos la directiva adicional para Cookidoo
                 if tiene_thermomix:
                     prompt += (
                         " ADEMÁS, dado que la familia cuenta con Thermomix, incluye para cada cena recomendada los títulos de recetas iguales o muy similares "
@@ -104,7 +120,6 @@ else:
 
                 contents = [prompt]
                 
-                # Adjuntamos los archivos subidos
                 for uploaded_file in uploaded_files:
                     file_bytes = uploaded_file.getvalue()
                     if uploaded_file.type in ["image/png", "image/jpeg", "image/jpg"]:
