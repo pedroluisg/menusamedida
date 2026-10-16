@@ -1,13 +1,30 @@
 import streamlit as st
+import os
 from google import genai
 from google.genai import types
 
 def obtener_cliente_gemini():
+    gemini_api_key = None
+    
+    # 1. Intentamos leer la clave desde los secretos de Streamlit (Cloud o local con secrets.toml)
     try:
-        gemini_api_key = st.secrets["GEMINI_API_KEY"]
-        return genai.Client(api_key=gemini_api_key)
+        if "GEMINI_API_KEY" in st.secrets:
+            gemini_api_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
-        return None
+        pass
+
+    # 2. Si no está en Streamlit, probamos como variable de entorno (para Render o tu ordenador)
+    if not gemini_api_key:
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+
+    # Si encontramos la clave en cualquiera de los dos sitios, inicializamos el cliente
+    if gemini_api_key:
+        try:
+            return genai.Client(api_key=gemini_api_key)
+        except Exception:
+            return None
+            
+    return None
 
 def generar_propuesta_cenas(client, edades_ninos, fecha_inicio, fecha_fin, tiene_thermomix, uploaded_files):
     edades_str = ", ".join([f"{e} años" for e in edades_ninos])
