@@ -1,3 +1,5 @@
 streamlit
 google-genai
 requests
+fpdf2
+streamlit-local-storage
