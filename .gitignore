@@ -1,0 +1,4 @@
+# Ocultar secretos y configuraciones locales
+.streamlit/secrets.toml
+__pycache__/
+.env
