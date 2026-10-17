@@ -27,18 +27,17 @@ def generar_propuesta_cenas(client, edades_ninos, fecha_inicio, fecha_fin, tiene
     num_personas = len(edades_ninos)
     edades_str = ", ".join([f"{e} años" for e in edades_ninos])
 
-    instruccion_cocina = ""
     if tiene_thermomix:
         instruccion_cocina = (
             "REGLA ESTRICTA DE THERMOMIX (COOKIDOO):\n"
-            "- La familia TIENE Thermomix. Utiliza obligatoriamente la herramienta de búsqueda de Google para verificar si la receta elegida existe realmente en 'cookidoo.es'.\n"
+            "- La familia TIENE Thermomix. Verifica si la receta elegida existe realmente en 'cookidoo.es'.\n"
             "- Si encuentras la receta real en Cookidoo: pon el NOMBRE EXACTO tal como figura en Cookidoo y detalla los pasos resumidos para Thermomix (tiempos, temperatura y velocidad).\n"
-            "- Si tras buscar verificas que NO existe una receta igual o muy similar en Cookidoo: PROHIBIDO INVENTARLA. Indica 'Preparación tradicional (no disponible en Cookidoo)' y explica la receta tradicional paso a paso.\n"
+            "- Si NO existe una receta igual o muy similar en Cookidoo: PROHIBIDO INVENTARLA. Indica 'Preparación tradicional (no disponible en Cookidoo)' y explica la receta tradicional paso a paso.\n"
         )
     else:
         instruccion_cocina = (
             "REGLA DE COCINA TRADICIONAL:\n"
-            "- La familia NO tiene Thermomix. Busca en internet la receta casera más apropiada, saludable y rápida para ese plato y descríbela paso a paso de forma tradicional.\n"
+            "- La familia NO tiene Thermomix. Elige la receta casera más apropiada, saludable y rápida para ese plato y descríbela paso a paso de forma tradicional.\n"
         )
 
     prompt = (
@@ -51,7 +50,7 @@ def generar_propuesta_cenas(client, edades_ninos, fecha_inicio, fecha_fin, tiene
         f"4. FORMATO OBLIGATORIO PARA CADA DÍA:\n"
         f"### [Día de la semana y Fecha] - [Nombre del plato único + postre]\n"
         f"- **Lógica nutricional:** (1 frase corta explicando por qué compensa las comidas del mediodía).\n"
-        f"- **Modalidad / Receta:** (Nombre exacto verificado en Cookidoo o 'Receta tradicional').\n"
+        f"- **Modalidad / Receta:** (Nombre exacto en Cookidoo o 'Receta tradicional').\n"
         f"- **Ingredientes ({num_personas} personas):** (Lista concisa en una línea).\n"
         f"- **Preparación paso a paso:** (Pasos cortos, numerados y claros).\n"
     )
@@ -69,21 +68,44 @@ def generar_propuesta_cenas(client, edades_ninos, fecha_inicio, fecha_fin, tiene
                 types.Part.from_bytes(data=file_bytes, mime_type="application/pdf")
             )
 
-    # Activamos Google Search para que verifique en vivo Cookidoo y recetas reales
-    try:
-        response = client.models.generate_content(
-            model='gemini-3.8-flash',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                temperature=0.2,
-            )
-        )
-    except Exception:
-        # Respaldo automático en caso de que la red de búsqueda sufra un corte puntual
-        response = client.models.generate_content(
-            model='gemini-3.8-flash',
-            contents=contents,
-        )
+    # Lista de modelos en cascada: si uno agota sus 20 peticiones diarias gratuitas, pasa al siguiente
+    modelos_respaldo = [
+        "gemini-3.8-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite"
+    ]
 
-    return response.text
+    ultimo_error = None
+
+    for nombre_modelo in modelos_respaldo:
+        try:
+            # Si tiene Thermomix intentamos primero con búsqueda en vivo en Google
+            if tiene_thermomix:
+                try:
+                    response = client.models.generate_content(
+                        model=nombre_modelo,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            tools=[types.Tool(google_search=types.GoogleSearch())],
+                            temperature=0.2,
+                        )
+                    )
+                    return response.text
+                except Exception:
+                    # Si la cuota de búsqueda está agotada, lo lanza con el modelo estándar
+                    pass
+
+            response = client.models.generate_content(
+                model=nombre_modelo,
+                contents=contents,
+                config=types.GenerateContentConfig(temperature=0.2)
+            )
+            return response.text
+
+        except Exception as e:
+            ultimo_error = e
+            # Si es error 429 (cuota agotada) o 404, sigue probando con el siguiente modelo de la lista
+            continue
+
+    raise Exception(f"Se ha alcanzado el límite de consultas gratuitas por minuto/día en todos los modelos. Espera unos minutos e inténtalo de nuevo. Detalle: {ultimo_error}")
