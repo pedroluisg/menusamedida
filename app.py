@@ -1,6 +1,6 @@
 import streamlit as st
 from src.config import configurar_pagina
-from src.ui_components import renderizar_configuracion_principal
+from src.ui_components import renderizar_configuracion_principal, renderizar_footer
 from src.ai_client import obtener_cliente_gemini, generar_propuesta_cenas
 from src.pdf_generator import generar_pdf_menu
 
@@ -39,7 +39,6 @@ else:
                     menu_resultado = generar_propuesta_cenas(
                         client, edades_ninos, fecha_inicio, fecha_fin, tiene_thermomix, uploaded_files
                     )
-                    # Guardamos el resultado en la sesión actual para poder descargar el PDF sin perder la vista
                     st.session_state.ultimo_menu = menu_resultado
                     st.session_state.fechas_ultimo_menu = (str(fecha_inicio), str(fecha_fin))
                     st.session_state.tm_ultimo_menu = tiene_thermomix
@@ -55,7 +54,6 @@ else:
         titulo_seccion = f"🍽️ Propuesta de Cenas con Thermomix ({f_ini} al {f_fin})" if tm_usado else f"🍽️ Propuesta de Cenas ({f_ini} al {f_fin})"
         st.subheader(titulo_seccion)
 
-        # Botón de descarga directa en PDF en la parte superior del resultado
         try:
             pdf_bytes = generar_pdf_menu(st.session_state.ultimo_menu, f_ini, f_fin, tm_usado)
             nombre_archivo = f"Cenas_{f_ini}_al_{f_fin}.pdf"
@@ -70,3 +68,6 @@ else:
             st.warning(f"No se pudo preparar la descarga en PDF: {e}")
 
         st.markdown(st.session_state.ultimo_menu)
+
+# 4. Pie de página con aviso de privacidad y copyright
+renderizar_footer()
