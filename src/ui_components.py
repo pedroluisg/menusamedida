@@ -8,19 +8,16 @@ def renderizar_configuracion_principal():
     localS = LocalStorage()
 
     st.markdown("### ⚙️ 1. Configuración Familiar")
-    st.caption("Tus datos familiares se guardan automáticamente en este navegador para tus próximas visitas.")
+    st.caption("Tus datos familiares se guardan automáticamente en este dispositivo.")
 
-    # Leemos los datos guardados en el dispositivo móvil (si existen)
-    saved_num = localS.getItem("cfg_num_ninos")
-    saved_edades = localS.getItem("cfg_edades_ninos")
-    saved_tm = localS.getItem("cfg_thermomix")
+    # 1. Inicializamos session_state una sola vez leyendo del navegador
+    if "config_cargada" not in st.session_state:
+        saved_num = localS.getItem("cfg_num_ninos")
+        saved_edades = localS.getItem("cfg_edades_ninos")
+        saved_tm = localS.getItem("cfg_thermomix")
 
-    if "num_ninos" not in st.session_state:
         st.session_state.num_ninos = int(saved_num) if saved_num is not None else 2
-    elif saved_num is not None and not st.session_state.get("editado_usuario", False):
-        st.session_state.num_ninos = int(saved_num)
 
-    if "edades_ninos" not in st.session_state:
         if saved_edades:
             try:
                 st.session_state.edades_ninos = json.loads(saved_edades) if isinstance(saved_edades, str) else saved_edades
@@ -29,11 +26,17 @@ def renderizar_configuracion_principal():
         else:
             st.session_state.edades_ninos = [3.0, 6.0]
 
-    if "tiene_thermomix" not in st.session_state:
         st.session_state.tiene_thermomix = (str(saved_tm).lower() == "true") if saved_tm is not None else False
 
-    def marcar_edicion():
-        st.session_state.editado_usuario = True
+        if saved_num is not None or saved_edades is not None or saved_tm is not None:
+            st.session_state.config_cargada = True
+
+    if "guardar_pendiente" not in st.session_state:
+        st.session_state.guardar_pendiente = False
+
+    def activar_guardado():
+        st.session_state.guardar_pendiente = True
+        st.session_state.config_cargada = True
 
     # 1. Número de comensales / menús
     num_ninos = st.number_input(
@@ -42,10 +45,9 @@ def renderizar_configuracion_principal():
         max_value=6,
         value=int(st.session_state.num_ninos),
         step=1,
-        on_change=marcar_edicion
+        on_change=activar_guardado
     )
     st.session_state.num_ninos = num_ninos
-    localS.setItem("cfg_num_ninos", str(num_ninos), key="save_num")
 
     # 2. Edades dinámicas
     while len(st.session_state.edades_ninos) < num_ninos:
@@ -63,12 +65,11 @@ def renderizar_configuracion_principal():
                 value=float(st.session_state.edades_ninos[i]),
                 step=0.5,
                 key=f"edad_persona_{i}",
-                on_change=marcar_edicion
+                on_change=activar_guardado
             )
             edades_ninos.append(edad)
 
     st.session_state.edades_ninos = edades_ninos
-    localS.setItem("cfg_edades_ninos", json.dumps(edades_ninos), key="save_edades")
 
     st.markdown("---")
     st.markdown("### 📅 2. Fechas y Cocina")
@@ -83,10 +84,16 @@ def renderizar_configuracion_principal():
         "🍳 ¿Tenemos Thermomix en casa?",
         value=st.session_state.tiene_thermomix,
         help="Si lo marcas, buscará la receta exacta en Cookidoo. Si no existe en Cookidoo, te dará la receta tradicional.",
-        on_change=marcar_edicion
+        on_change=activar_guardado
     )
     st.session_state.tiene_thermomix = tiene_thermomix
-    localS.setItem("cfg_thermomix", str(tiene_thermomix), key="save_tm")
+
+    # Solo escribimos en LocalStorage cuando el usuario ha editado la configuración
+    if st.session_state.guardar_pendiente:
+        localS.setItem("cfg_num_ninos", str(num_ninos), key="save_num")
+        localS.setItem("cfg_edades_ninos", json.dumps(edades_ninos), key="save_edades")
+        localS.setItem("cfg_thermomix", str(tiene_thermomix), key="save_tm")
+        st.session_state.guardar_pendiente = False
 
     # Buzón de Feedback
     with st.expander("💬 ¿Qué te ha parecido el asistente? Déjanos tu opinión"):
@@ -97,7 +104,6 @@ def renderizar_configuracion_principal():
 
             if enviar_feedback:
                 if comentario.strip():
-                    # Recuerda mantener aquí tu correo de Gmail
                     mi_correo = "TU_CORREO_DE_GMAIL_AQUÍ@gmail.com"
                     asunto = "Feedback sobre el Asistente de Cenas"
                     cuerpo = f"Comentario:\n{comentario}\n\nEnviado por: {email_usuario if email_usuario else 'Anónimo'}"
@@ -115,3 +121,21 @@ def renderizar_configuracion_principal():
                     st.warning("Por favor, escribe algún comentario.")
 
     return num_ninos, edades_ninos, fecha_inicio, fecha_fin, tiene_thermomix
+
+
+def renderizar_footer():
+    anio_actual = datetime.date.today().year
+    st.markdown("---")
+    st.markdown(
+        f"""
+        <div style="text-align: center; font-size: 0.85rem; opacity: 0.75; padding: 10px 0px 20px 0px;">
+            <p style="margin-bottom: 5px;">
+                🔒 <strong>Privacidad garantizada:</strong> Los archivos subidos y los datos introducidos se procesan en tiempo real y <strong>no se almacenan en ningún servidor</strong> tras su uso. Tu configuración familiar se guarda únicamente en el navegador de tu propio dispositivo.
+            </p>
+            <p style="margin: 0;">
+                © {anio_actual} <strong>Menús a Medida</strong> — Todos los derechos reservados.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
